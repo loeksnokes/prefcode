@@ -264,12 +264,9 @@ func (p PrefixCode) Join(p1, p2 PrefixCode) *PrefixCode{
 func (p PrefixCode) Meet(p1, p2 PrefixCode) *PrefixCode{
 
 }
-
-
-func (p PrefixCode) Size() int{
-
-}
 */
+
+// Helper functions many just found and mildly edited from standard websites.
 
 // StringToRuneSlice converts a string to a slice of runes.
 func StringToRuneSlice(s string) []rune {
@@ -288,6 +285,8 @@ func trimLastChar(s string) string {
 	}
 	return s[:len(s)-size]
 }
+
+// CPB authorship below:
 
 // SortStringByCharacter sorts a string of runes
 func SortStringByCharacter(s string) string {
@@ -323,6 +322,11 @@ func MakeAlphabet(s string) []rune {
 
 	return a
 }
+
+// The below is a bit pointless since normal sort works fine for strings of utf8.
+// it is a modified version of some code I found that worked for ascii
+// and I modified it for runes.  Then I learned that < does this already for
+// strings by considering codepoints.
 
 // dictOrder returns an integer comparing the two byte slices,
 // lexicographically.
