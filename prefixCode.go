@@ -1,6 +1,7 @@
 package prefcode
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -56,10 +57,10 @@ type PrefCode interface {
 	ReduceAt(s string) bool
 	ExpandAt(s string) bool
 	ApplyPerm(perm map[int]int) bool
-	SwapPermAtKeys(a, b string)
+	SwapPermAtKeys(a, b string) error
 	Permutation() map[int]int
-	Join(PrefCode) PrefCode
-	Meet(PrefCode) PrefCode
+	Join(PrefCode) (PrefCode, error)
+	Meet(PrefCode) (PrefCode, error)
 	ExposedCarets() []string
 	LabelAtLeaf(string) int
 	LeafAtLabel(int) string
@@ -76,38 +77,37 @@ type prefixCode struct {
 
 // NewPrefCode returns a prefixCode as a PrefCode.  Magically sets the alphabet to be "01".
 // use NewPrefCodeAlpha to instantiate a code with a different alphabet.
-func NewPrefCode() PrefCode {
-	prefc := NewPrefCodeAlphaString("01")
-
-	return prefc
+func NewPrefCode() (PrefCode, error) {
+	prefC, error := NewPrefCodeAlphaString("01")
+	return prefC, error
 }
 
 // NewPrefCodeAlphaRunes returns a prefixCode as a PrefCode and sets alphabet of runes by slice.
-func NewPrefCodeAlphaRunes(alpha []rune) PrefCode {
+func NewPrefCodeAlphaRunes(alpha []rune) (PrefCode, error) {
 	var prefc prefixCode
 
 	//verify that 𝛆 is not a rune in alpha
 	//TODO handle gracefully with better error handling.
 	for _, v := range alpha {
 		if EmptyString == string(v) {
-			panic("Forbidden character `𝛆` in alphabet.")
+			return prefc, errors.New("Forbidden character `𝛆` in alphabet")
 		}
 	}
 
 	if len(alpha) < 1 {
-		panic("Empty Alphabet forbidden.")
+		return prefc, errors.New("Empty Alphabet forbidden")
 	}
 
 	prefc.alphabet = alpha
 	prefc.code = make(map[string]int, len(alpha))
 	prefc.code[EmptyString] = 0
-	return prefc
+	return prefc, nil
 }
 
 // NewPrefCodeAlphaString returns a prefixCode as a PrefCode and sets alphabet of runes by input string.
-func NewPrefCodeAlphaString(alphaStr string) PrefCode {
-	prefc := NewPrefCodeAlphaRunes(MakeAlphabet(alphaStr))
-	return prefc
+func NewPrefCodeAlphaString(alphaStr string) (PrefCode, error) {
+	prefc, err := NewPrefCodeAlphaRunes(MakeAlphabet(alphaStr))
+	return prefc, err
 }
 
 // DFSToPrefCode takes an alphabet of runes and a properly shaped DFS sequence
@@ -124,7 +124,7 @@ func DFSToPrefCode(pc PrefCode, DFS string) bool {
 	alpha := pc.Alphabet()
 
 	if !ValidDFSForPrefC(len(alpha), DFS) {
-		fmt.Println("DFSToPrefCode: Failed ValidDFSForPrefC(" + string(int(len(alpha)+'0')) + ", " + DFS + ")")
+		fmt.Println("DFSToPrefCode: Failed ValidDFSForPrefC(" + strconv.Itoa(int(len(alpha)+'0')) + ", " + DFS + ")")
 		//TODO better error handling.
 		return false
 	}
@@ -263,16 +263,17 @@ func (p prefixCode) Permutation() (perm map[int]int) {
 	return
 }
 
-func (p prefixCode) SwapPermAtKeys(a, b string) {
+func (p prefixCode) SwapPermAtKeys(a, b string) error {
 	valuea, oka := p.code[a]
 	valueb, okb := p.code[b]
-	if oka && okb {
-		p.code[a] = valueb
-		p.code[b] = valuea
+	if !oka || !okb {
+		return errors.New("Did not find p.code[a] or p.code[b]")
 	}
+	p.code[a] = valueb
+	p.code[b] = valuea
 
 	//todo send some error too if a or b not found.
-	return
+	return nil
 }
 
 // LabelAtLeaf returns the label at the leaf if it exists.
@@ -562,8 +563,12 @@ func (p prefixCode) GetPrefixOf(s string) string {
 // Join finds smallest prefix code so that each leaf is deeper/equal
 // to leaves of both prefix codes and returns a pointer to this constructed code.
 // TODO: needs testing coverage
-func (p prefixCode) Join(q PrefCode) PrefCode {
-	jpc := NewPrefCodeAlphaRunes(p.alphabet)
+func (p prefixCode) Join(q PrefCode) (PrefCode, error) {
+	jpc, err := NewPrefCodeAlphaRunes(p.alphabet)
+
+	if err != nil {
+		return jpc, err
+	}
 
 	expansionsP := p.ExposedCarets()
 
@@ -576,14 +581,17 @@ func (p prefixCode) Join(q PrefCode) PrefCode {
 	for _, v := range expansionsQ {
 		jpc.ExpandAt(v)
 	}
-	return jpc
+	return jpc, err
 }
 
 // Iterates from left-right through the prefx codes, choosing the shallower
 // element of any comparable pair too build a new prefix code.  Replaces the first with this one.
-func (p prefixCode) Meet(q PrefCode) PrefCode {
-	jpc := NewPrefCodeAlphaRunes(p.alphabet)
+func (p prefixCode) Meet(q PrefCode) (PrefCode, error) {
+	jpc, err := NewPrefCodeAlphaRunes(p.alphabet)
 
+	if err != nil {
+		return jpc, err
+	}
 	expansionsP := p.ExposedCarets()
 	expansionsQ := q.ExposedCarets()
 
@@ -625,7 +633,7 @@ func (p prefixCode) Meet(q PrefCode) PrefCode {
 	for k := range allCommonExpansions {
 		jpc.ExpandAt(k)
 	}
-	return jpc
+	return jpc, err
 }
 
 // CodeToSlice returns a * to slice consisting of the codestrings of p
