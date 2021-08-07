@@ -418,6 +418,9 @@ func (p prefixCode) ReduceAt(s string) bool {
 //that resides in the PrefixCode, if such exists.  It
 //adds the minimal tree rooted at r so that the result
 //contains t as a member of the code.
+//TODO: (07Aug2021) refactor logic so gocyclo count (see goreportcard on gitub) is reduced.  Should
+//be easy as initial logic looks over-detected.
+//E.g., 1 == len(p.code) && Emptystring==p.LeafAtLabel(0) is in both first tests.
 func (p prefixCode) ExpandAt(s string) bool {
 
 	// p.code is empty (contains EmptyString) and requested expansion is at root.
