@@ -34,7 +34,7 @@ Can:
     1) Verify it is a prefix code.
     2) Describe its cardinality.
 	3) expand a caret at a string with all
-		collateral consequenes (leaf or
+		collateral consequences (leaf or
 		deeper, ignores shallow locations,
 		all later points re-indexed)
 	4) reduce at a string (shallow locations
@@ -338,10 +338,6 @@ func PermToString(permutation map[int]int) (permStr string) {
 		permStr += "[" + strconv.Itoa(ii) + " " + strconv.Itoa(v) + "]" + ", "
 	}
 
-	trimLen := len(permStr) - 2
-	if trimLen < 0 {
-		trimLen = 0
-	}
 	permStr = strings.TrimSuffix(permStr, ", ")
 	return
 }
@@ -359,10 +355,6 @@ func (p prefixCode) String() string {
 		build += "[" + k + " " + strconv.Itoa(p.code[k]) + "]" + ", "
 	}
 
-	trimLen := len(build) - 2
-	if trimLen < 0 {
-		trimLen = 0
-	}
 	return strings.TrimSuffix(build, ", ")
 }
 
