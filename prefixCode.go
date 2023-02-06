@@ -53,14 +53,16 @@ const EmptyString = "𝛆"
 type PrefCode interface {
 	Alphabet() []rune
 	SetAlphabet([]rune)
-	Equals(*PrefCode) bool
+	SetCode(map[string]int)
+	Code() map[string]int
+	Equals(PrefCode) bool
 	ReduceAt(s string) bool
 	ExpandAt(s string) bool
 	ApplyPerm(perm map[int]int) bool
 	SwapPermAtKeys(a, b string) error
 	Permutation() map[int]int
-	Join(PrefCode) (PrefCode, error)
-	Meet(PrefCode) (PrefCode, error)
+	Join(PrefCode) (*prefixCode, error)
+	Meet(PrefCode) (*prefixCode, error)
 	ExposedCarets() []string
 	LabelAtLeaf(string) int
 	LeafAtLabel(int) string
@@ -77,41 +79,39 @@ type prefixCode struct {
 
 // NewPrefCode returns a prefixCode as a PrefCode.  Magically sets the alphabet to be "01".
 // use NewPrefCodeAlpha to instantiate a code with a different alphabet.
-func NewPrefCode() (PrefCode, error) {
-	prefC, error := NewPrefCodeAlphaString("01")
-	return prefC, error
+func NewPrefCode() (*prefixCode, error) {
+	return NewPrefCodeAlphaString("01")
 }
 
 // NewPrefCodeAlphaRunes returns a prefixCode as a PrefCode and sets alphabet of runes by slice.
-func NewPrefCodeAlphaRunes(alpha []rune) (PrefCode, error) {
+func NewPrefCodeAlphaRunes(alpha []rune) (*prefixCode, error) {
 	var prefc prefixCode
 
 	//verify that 𝛆 is not a rune in alpha
 	//TODO handle gracefully with better error handling.
 	for _, v := range alpha {
 		if EmptyString == string(v) {
-			return prefc, errors.New("Forbidden character `𝛆` in alphabet")
+			return &prefc, errors.New("Forbidden character `𝛆` in alphabet")
 		}
 	}
 
 	if len(alpha) < 1 {
-		return prefc, errors.New("Empty Alphabet forbidden")
+		return &prefc, errors.New("Empty Alphabet forbidden")
 	}
 
 	prefc.alphabet = alpha
 	prefc.code = make(map[string]int, len(alpha))
 	prefc.code[EmptyString] = 0
-	return prefc, nil
+	return &prefc, nil
 }
 
 // NewPrefCodeAlphaString returns a prefixCode as a PrefCode and sets alphabet of runes by input string.
-func NewPrefCodeAlphaString(alphaStr string) (PrefCode, error) {
-	prefc, err := NewPrefCodeAlphaRunes(MakeAlphabet(alphaStr))
-	return prefc, err
+func NewPrefCodeAlphaString(alphaStr string) (*prefixCode, error) {
+	return NewPrefCodeAlphaRunes(MakeAlphabet(alphaStr))
 }
 
 // DFSToPrefCode takes an alphabet of runes and a properly shaped DFS sequence
-// for alphabet cardinality and creates the corresponding prefixcode with maturnal
+// for alphabet cardinality and creates the corresponding prefixcode with natural
 // permutation.
 // TODO: move to prefcode package.
 func DFSToPrefCode(pc PrefCode, DFS string) bool {
@@ -358,13 +358,22 @@ func (p prefixCode) String() string {
 	return strings.TrimSuffix(build, ", ")
 }
 
+func (p prefixCode) Code() map[string]int {
+	return p.code
+}
+
+// No safety check, that the alphabet of the original prefixcode is the same as that of the new map.
+func (p prefixCode) SetCode(pc map[string]int) {
+	p.code = pc
+}
+
 func (p prefixCode) SetAlphabet(a []rune) {
 	p.alphabet = make([]rune, len(a))
 	copy(p.alphabet, a)
 }
 
-func (p prefixCode) Equals(q *PrefCode) bool {
-	return p.String() == (*q).String()
+func (p prefixCode) Equals(q PrefCode) bool {
+	return p.String() == q.String()
 }
 
 //ReduceAt replaces tree dangling at s with
@@ -558,7 +567,7 @@ func (p prefixCode) GetPrefixOf(s string) string {
 // Join finds smallest prefix code so that each leaf is deeper/equal
 // to leaves of both prefix codes and returns a pointer to this constructed code.
 // TODO: needs testing coverage
-func (p prefixCode) Join(q PrefCode) (PrefCode, error) {
+func (p prefixCode) Join(q PrefCode) (*prefixCode, error) {
 	jpc, err := NewPrefCodeAlphaRunes(p.alphabet)
 
 	if err != nil {
@@ -581,7 +590,7 @@ func (p prefixCode) Join(q PrefCode) (PrefCode, error) {
 
 // Iterates from left-right through the prefx codes, choosing the shallower
 // element of any comparable pair too build a new prefix code.  Replaces the first with this one.
-func (p prefixCode) Meet(q PrefCode) (PrefCode, error) {
+func (p prefixCode) Meet(q PrefCode) (*prefixCode, error) {
 	jpc, err := NewPrefCodeAlphaRunes(p.alphabet)
 
 	if err != nil {
